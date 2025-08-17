@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ hàm co IFS cho Parabol</title>
+    
+    <!-- MathJax -->
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']],
+            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+            packages: {'[+]': ['ams']}
+          },
+          loader: {load: ['[tex]/ams']},
+          svg: {
+            fontCache: 'global'
+          }
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f5f7fa;
+            --panel-bg: #ffffff;
+            --primary-color: #4a7a9c;
+            --secondary-color: #7d9cb3;
+            --text-color: #343a40;
+            --border-color: #dee2e6;
+            --slider-thumb: #4a7a9c;
+            --f1-color: #28a745;
+            --f2-color: #dc3545;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .panel {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px var(--shadow-color);
+            padding: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        h1, h2 {
+            color: var(--primary-color);
+            margin-top: 0;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.2em;
+        }
+        
+        h2 {
+            font-size: 1.5em;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        label {
+            min-width: 80px;
+            font-weight: 500;
+            margin-right: 10px;
+        }
+        
+        input[type="range"] {
+            flex-grow: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            border-radius: 4px;
+            outline: none;
+            margin-right: 10px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--slider-thumb);
+            border-radius: 50%;
+            cursor: pointer;
+            border: 3px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .math-display {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        
+        .function-display {
+            margin: 20px 0;
+        }
+        
+        .function-title {
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+        
+        #error-message {
+            color: var(--f2-color);
+            font-weight: bold;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 500px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Hệ hàm co IFS cho Parabol</h1>
+    
+    <div class="container">
+        <div class="panel">
+            <h2>Tham số điều khiển</h2>
+            
+            <div id="error-message">Lỗi: α phải nhỏ hơn β</div>
+            
+            <div class="control-group">
+                <h3>Phương trình Parabol</h3>
+                <div class="math-display">
+                    \[ x_2 = a x_1^2 + b x_1 + c \]
+                </div>
+                
+                <div class="control-row">
+                    <label for="paramA">a:</label>
+                    <input type="range" id="paramA" min="-5" max="5" step="0.1" value="-1">
+                    <input type="number" id="paramAValue" value="-1.00" step="0.1">
+                </div>
+                
+                <div class="control-row">
+                    <label for="paramB">b:</label>
+                    <input type="range" id="paramB" min="-5" max="5" step="0.1" value="1">
+                    <input type="number" id="paramBValue" value="1.00" step="0.1">
+                </div>
+                
+                <div class="control-row">
+                    <label for="paramC">c:</label>
+                    <input type="range" id="paramC" min="-5" max="5" step="0.1" value="0">
+                    <input type="number" id="paramCValue" value="0.00" step="0.1">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Miền xác định</h3>
+                
+                <div class="control-row">
+                    <label for="paramAlpha">α:</label>
+                    <input type="range" id="paramAlpha" min="-5" max="5" step="0.1" value="0">
+                    <input type="number" id="paramAlphaValue" value="0.00" step="0.1">
+                </div>
+                
+                <div class="control-row">
+                    <label for="paramBeta">β:</label>
+                    <input type="range" id="paramBeta" min="-5" max="5" step="0.1" value="1">
+                    <input type="number" id="paramBetaValue" value="1.00" step="0.1">
+                </div>
+            </div>
+            
+            <div class="function-display">
+                <h2>Hệ hàm co</h2>
+                
+                <div class="function-title">Hàm f₁:</div>
+                <div class="math-display" id="f1-display">
+                    \[ f_1\begin{pmatrix}x_1\\x_2\end{pmatrix} = \begin{bmatrix} 0.5 & 0 \\ 0.25 & 0.25 \end{bmatrix} \begin{pmatrix}x_1\\x_2\end{pmatrix} + \begin{pmatrix}0\\0\end{pmatrix} \]
+                </div>
+                
+                <div class="function-title">Hàm f₂:</div>
+                <div class="math-display" id="f2-display">
+                    \[ f_2\begin{pmatrix}x_1\\x_2\end{pmatrix} = \begin{bmatrix} -0.5 & 0 \\ -0.25 & 0.25 \end{bmatrix} \begin{pmatrix}x_1\\x_2\end{pmatrix} + \begin{pmatrix}1\\0.5\end{pmatrix} \]
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Minh họa đồ họa</h2>
+            <canvas id="graphCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Khởi tạo các tham số
+        let params = {
+            a: -1,
+            b: 1,
+            c: 0,
+            alpha: 0,
+            beta: 1
+        };
+        
+        // Lấy các phần tử DOM
+        const sliders = {
+            a: document.getElementById('paramA'),
+            b: document.getElementById('paramB'),
+            c: document.getElementById('paramC'),
+            alpha: document.getElementById('paramAlpha'),
+            beta: document.getElementById('paramBeta')
+        };
+        
+        const valueInputs = {
+            a: document.getElementById('paramAValue'),
+            b: document.getElementById('paramBValue'),
+            c: document.getElementById('paramCValue'),
+            alpha: document.getElementById('paramAlphaValue'),
+            beta: document.getElementById('paramBetaValue')
+        };
+        
+        const errorMessage = document.getElementById('error-message');
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Thiết lập kích thước canvas
+        function setupCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        
+        // Cập nhật tham số từ slider/input
+        function updateParams() {
+            params.a = parseFloat(sliders.a.value);
+            params.b = parseFloat(sliders.b.value);
+            params.c = parseFloat(sliders.c.value);
+            params.alpha = parseFloat(sliders.alpha.value);
+            params.beta = parseFloat(sliders.beta.value);
+            
+            // Đồng bộ giá trị với input number
+            valueInputs.a.value = params.a.toFixed(2);
+            valueInputs.b.value = params.b.toFixed(2);
+            valueInputs.c.value = params.c.toFixed(2);
+            valueInputs.alpha.value = params.alpha.toFixed(2);
+            valueInputs.beta.value = params.beta.toFixed(2);
+            
+            // Kiểm tra alpha < beta
+            if (params.alpha >= params.beta) {
+                errorMessage.style.display = 'block';
+                return false;
+            }
+            errorMessage.style.display = 'none';
+            return true;
+        }
+        
+        // Tính toán các hàm co
+        function calculateIFS() {
+            const { a, b, c, alpha, beta } = params;
+            
+            // Hàm f1
+            const s1 = 0.5;
+            const k1 = 0.25 * b + 0.5 * a * alpha;
+            const t1 = 0.25;
+            const u1 = 0.5 * alpha;
+            const v1 = 0.75 * c + 0.25 * a * alpha * alpha + 0.5 * b * alpha;
+            
+            // Hàm f2
+            const s2 = -0.5;
+            const k2 = -0.75 * b - a * (beta + 0.5 * alpha);
+            const t2 = 0.25;
+            const u2 = beta + 0.5 * alpha;
+            const v2 = 0.75 * c + a * (beta + 0.5 * alpha) * (beta + 0.5 * alpha) + b * (beta + 0.5 * alpha);
+            
+            return {
+                f1: {
+                    matrix: [[s1, 0], [k1, t1]],
+                    translation: [u1, v1]
+                },
+                f2: {
+                    matrix: [[s2, 0], [k2, t2]],
+                    translation: [u2, v2]
+                }
+            };
+        }
+        
+        // Cập nhật hiển thị công thức toán học
+        function updateMathDisplay() {
+            const ifs = calculateIFS();
+            const f1 = ifs.f1;
+            const f2 = ifs.f2;
+            
+            document.getElementById('f1-display').innerHTML = `
+                \\[ f_1\\begin{pmatrix}x_1\\\\x_2\\end{pmatrix} = 
+                \\begin{bmatrix} 
+                    ${f1.matrix[0][0].toFixed(2)} & 0 \\\\ 
+                    ${f1.matrix[1][0].toFixed(2)} & ${f1.matrix[1][1].toFixed(2)} 
+                \\end{bmatrix} 
+                \\begin{pmatrix}x_1\\\\x_2\\end{pmatrix} + 
+                \\begin{pmatrix}${f1.translation[0].toFixed(2)}\\\\${f1.translation[1].toFixed(2)}\\end{pmatrix} \\]
+            `;
+            
+            document.getElementById('f2-display').innerHTML = `
+                \\[ f_2\\begin{pmatrix}x_1\\\\x_2\\end{pmatrix} = 
+                \\begin{bmatrix} 
+                    ${f2.matrix[0][0].toFixed(2)} & 0 \\\\ 
+                    ${f2.matrix[1][0].toFixed(2)} & ${f2.matrix[1][1].toFixed(2)} 
+                \\end{bmatrix} 
+                \\begin{pmatrix}x_1\\\\x_2\\end{pmatrix} + 
+                \\begin{pmatrix}${f2.translation[0].toFixed(2)}\\\\${f2.translation[1].toFixed(2)}\\end{pmatrix} \\]
+            `;
+            
+            if (window.MathJax) {
+                MathJax.typesetPromise();
+            }
+        }
+        
+        // Vẽ đồ thị
+        function drawGraph() {
+            if (!updateParams()) return;
+            
+            const { a, b, c, alpha, beta } = params;
+            const ifs = calculateIFS();
+            
+            setupCanvas();
+            const rect = canvas.getBoundingClientRect();
+            const width = rect.width;
+            const height = rect.height;
+            
+            // Xóa canvas
+            ctx.clearRect(0, 0, width, height);
+            
+            // Tính toán phạm vi hiển thị
+            const parabola = (x) => a * x * x + b * x + c;
+            const yAtAlpha = parabola(alpha);
+            const yAtBeta = parabola(beta);
+            
+            // Tìm giá trị min/max của y
+            const vertexX = -b / (2 * a);
+            let yMin = Math.min(yAtAlpha, yAtBeta);
+            let yMax = Math.max(yAtAlpha, yAtBeta);
+            
+            if (vertexX >= alpha && vertexX <= beta) {
+                const vertexY = parabola(vertexX);
+                yMin = Math.min(yMin, vertexY);
+                yMax = Math.max(yMax, vertexY);
+            }
+            
+            // Thêm padding
+            const xPadding = (beta - alpha) * 0.2;
+            const yPadding = (yMax - yMin) * 0.2;
+            const xMin = alpha - xPadding;
+            const xMax = beta + xPadding;
+            const yMinDisplay = yMin - yPadding;
+            const yMaxDisplay = yMax + yPadding;
+            
+            // Hàm chuyển đổi tọa độ thực tế sang tọa độ canvas
+            const toCanvasX = (x) => ((x - xMin) / (xMax - xMin)) * width;
+            const toCanvasY = (y) => height - ((y - yMinDisplay) / (yMaxDisplay - yMinDisplay)) * height;
+            
+            // Vẽ lưới và trục tọa độ
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            
+            // Vẽ lưới ngang
+            const yStep = (yMaxDisplay - yMinDisplay) / 10;
+            for (let y = Math.ceil(yMinDisplay / yStep) * yStep; y <= yMaxDisplay; y += yStep) {
+                const canvasY = toCanvasY(y);
+                ctx.beginPath();
+                ctx.moveTo(0, canvasY);
+                ctx.lineTo(width, canvasY);
+                ctx.stroke();
+                
+                // Vẽ nhãn trục y
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'right';
+                ctx.fillText(y.toFixed(1), 40, canvasY + 4);
+            }
+            
+            // Vẽ lưới dọc
+            const xStep = (xMax - xMin) / 10;
+            for (let x = Math.ceil(xMin / xStep) * xStep; x <= xMax; x += xStep) {
+                const canvasX = toCanvasX(x);
+                ctx.beginPath();
+                ctx.moveTo(canvasX, 0);
+                ctx.lineTo(canvasX, height);
+                ctx.stroke();
+                
+                // Vẽ nhãn trục x
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(x.toFixed(1), canvasX, height - 10);
+            }
+            
+            // Vẽ trục tọa độ
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 2;
+            
+            // Trục x
+            if (yMinDisplay <= 0 && yMaxDisplay >= 0) {
+                const canvasY = toCanvasY(0);
+                ctx.beginPath();
+                ctx.moveTo(0, canvasY);
+                ctx.lineTo(width, canvasY);
+                ctx.stroke();
+            }
+            
+            // Trục y
+            if (xMin <= 0 && xMax >= 0) {
+                const canvasX = toCanvasX(0);
+                ctx.beginPath();
+                ctx.moveTo(canvasX, 0);
+                ctx.lineTo(canvasX, height);
+                ctx.stroke();
+            }
+            
+            // Vẽ parabol
+            ctx.strokeStyle = '#4a7a9c';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            const steps = 100;
+            for (let i = 0; i <= steps; i++) {
+                const x = alpha + (beta - alpha) * (i / steps);
+                const y = parabola(x);
+                const canvasX = toCanvasX(x);
+                const canvasY = toCanvasY(y);
+                
+                if (i === 0) {
+                    ctx.moveTo(canvasX, canvasY);
+                } else {
+                    ctx.lineTo(canvasX, canvasY);
+                }
+            }
+            ctx.stroke();
+            
+            // Vẽ attractor IFS
+            const f1 = ifs.f1;
+            const f2 = ifs.f2;
+            
+            let point = { x: alpha, y: parabola(alpha) };
+            const numPoints = 50000;
+            
+            for (let i = 0; i < numPoints; i++) {
+                const choice = Math.random() < 0.5 ? f1 : f2;
+                const m = choice.matrix;
+                const t = choice.translation;
+                
+                const newX = m[0][0] * point.x + m[0][1] * point.y + t[0];
+                const newY = m[1][0] * point.x + m[1][1] * point.y + t[1];
+                
+                point = { x: newX, y: newY };
+                
+                if (i > 20) { // Bỏ qua các điểm đầu để ổn định
+                    const canvasX = toCanvasX(point.x);
+                    const canvasY = toCanvasY(point.y);
+                    
+                    ctx.fillStyle = choice === f1 ? 'rgba(40, 167, 69, 0.7)' : 'rgba(220, 53, 69, 0.7)';
+                    ctx.fillRect(canvasX, canvasY, 2, 2);
+                }
+            }
+        }
+        
+        // Thiết lập sự kiện
+        function setupEventListeners() {
+            // Cập nhật khi slider thay đổi
+            Object.values(sliders).forEach(slider => {
+                slider.addEventListener('input', () => {
+                    updateParams();
+                    updateMathDisplay();
+                    drawGraph();
+                });
+            });
+            
+            // Cập nhật khi input number thay đổi
+            Object.values(valueInputs).forEach(input => {
+                input.addEventListener('change', () => {
+                    const param = input.id.replace('param', '').replace('Value', '').toLowerCase();
+                    sliders[param].value = input.value;
+                    updateParams();
+                    updateMathDisplay();
+                    drawGraph();
+                });
+            });
+            
+            // Xử lý thay đổi kích thước cửa sổ
+            window.addEventListener('resize', () => {
+                drawGraph();
+            });
+        }
+        
+        // Khởi động ứng dụng
+        function init() {
+            setupCanvas();
+            setupEventListeners();
+            updateMathDisplay();
+            drawGraph();
+        }
+        
+        // Chạy ứng dụng
+        init();
+    </script>
+</body>
+</html>
