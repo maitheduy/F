@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chữ V lộn ngược — Attractor của IFS (f1 & f2)</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:var(--bg);color:var(--ink);}
+    .wrap{max-width:980px;margin:24px auto;padding:16px;}
+    .card{background:var(--panel);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:16px;}
+    .row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+    .grow{flex:1}
+    input[type="number"], input[type="range"]{width:100%}
+    canvas{width:100%;height:auto;background:#0b1022;border-radius:12px;display:block}
+    .legend{display:flex;gap:16px;align-items:center;font-size:14px;color:var(--muted)}
+    .dot{width:10px;height:10px;border-radius:9999px;display:inline-block}
+    .g{background:green}.r{background:red}
+    .small{font-size:12px;color:var(--muted)}
+    .math{background:#1f2937;padding:8px;border-radius:8px;margin:8px 0;font-size:16px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>Attractor từ hệ IFS gồm <em>f1</em> và <em>f2</em> (đối xứng trục tung)</h1>
+      <p class="small">Thuật toán: Chaos Game với hai ánh xạ affine f1, f2.</p>
+
+      <div class="math">\[
+      f_1(x,y) = \begin{bmatrix}0.5 & 0 \\ 0.5 & a \end{bmatrix}\begin{bmatrix}x \\ y\end{bmatrix}, \quad
+      f_2(x,y) = \begin{bmatrix}-0.5 & 0 \\ 0.5 & a \end{bmatrix}\begin{bmatrix}x \\ y\end{bmatrix}+\begin{bmatrix}1 \\ 0\end{bmatrix}
+      \]
+      </div>
+
+      <div class="row">
+        <div class="grow">
+          <label for="points">Số điểm (n_points): <span id="pointsLabel">100000</span></label>
+          <input id="points" type="range" min="1000" max="300000" step="1000" value="100000" />
+        </div>
+        <div style="width:180px">
+          <label for="aParam">Tham số a (trong M1, M2): <span id="aLabel">0.0</span></label>
+          <input id="aParam" type="range" min="-1" max="1" step="0.01" value="0" />
+        </div>
+        <button id="saveBtn">Lưu ảnh PNG</button>
+      </div>
+
+      <div class="legend" style="margin:8px 0 12px">
+        <span><span class="dot g"></span> f1 (xanh lá)</span>
+        <span><span class="dot r"></span> f2 (đỏ)</span>
+        <span>Trục X: [0, 1], Trục Y: [0, 0.5]</span>
+      </div>
+
+      <canvas id="plot" width="900" height="460" aria-label="Scatter plot attractor"></canvas>
+      <div class="small">Gợi ý: Tăng số điểm để hình rõ hơn; kéo thanh <code>a</code> để khám phá biến thể.</div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('plot');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const pointsInput = document.getElementById('points');
+    const pointsLabel = document.getElementById('pointsLabel');
+    const aInput = document.getElementById('aParam');
+    const aLabel = document.getElementById('aLabel');
+    const saveBtn = document.getElementById('saveBtn');
+
+    const XMIN = 0, XMAX = 1;
+    const YMIN = 0, YMAX = 0.5;
+    const PAD_L = 40, PAD_R = 12, PAD_T = 16, PAD_B = 36;
+
+    function sx(x){
+      return PAD_L + (x - XMIN) * (canvas.width - PAD_L - PAD_R) / (XMAX - XMIN);
+    }
+    function sy(y){
+      return canvas.height - PAD_B - (y - YMIN) * (canvas.height - PAD_T - PAD_B) / (YMAX - YMIN);
+    }
+
+    function clearCanvas(){
+      ctx.fillStyle = '#0b1022';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawAxes(){
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(PAD_L, sy(0));
+      ctx.lineTo(canvas.width - PAD_R, sy(0));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(PAD_L, PAD_T);
+      ctx.lineTo(PAD_L, canvas.height - PAD_B);
+      ctx.stroke();
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '12px system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+      for(let t=0; t<=10; t++){
+        const x = t/10;
+        const px = sx(x);
+        ctx.beginPath();
+        ctx.moveTo(px, sy(0)-4);
+        ctx.lineTo(px, sy(0)+4);
+        ctx.strokeStyle = '#475569';
+        ctx.stroke();
+        ctx.fillText(x.toFixed(1), px-8, sy(0)+16);
+      }
+      for(let t=0; t<=5; t++){
+        const y = t/10;
+        const py = sy(y);
+        ctx.beginPath();
+        ctx.moveTo(PAD_L-4, py);
+        ctx.lineTo(PAD_L+4, py);
+        ctx.strokeStyle = '#475569';
+        ctx.stroke();
+        ctx.fillText(y.toFixed(1), PAD_L-28, py+4);
+      }
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillText('X', canvas.width - PAD_R - 10, sy(0) + 24);
+      ctx.fillText('Y', PAD_L - 20, PAD_T + 12);
+    }
+
+    function stepIFS(p, a){
+      if (Math.random() < 0.5){
+        const x = 0.5*p.x + 0.0*p.y;
+        const y = 0.5*p.x + a*p.y;
+        return { x, y, which: 1 };
+      } else {
+        const x = -0.5*p.x + 0.0*p.y + 1.0;
+        const y =  0.5*p.x + a*p.y;
+        return { x, y, which: 2 };
+      }
+    }
+
+    function drawPoint(x, y){
+      const px = sx(x), py = sy(y);
+      ctx.fillStyle = (x < 0.5) ? 'green' : 'red';
+      ctx.fillRect(px, py, 1, 1);
+    }
+
+    async function render(){
+      clearCanvas();
+      drawAxes();
+      const nPoints = parseInt(pointsInput.value, 10) || 100000;
+      const a = parseFloat(aInput.value) || 0;
+      let p = { x: 0.5, y: 0.0 };
+      for (let i=0; i<200; i++) p = stepIFS(p, a);
+      const batch = 5000;
+      let drawn = 0;
+      while (drawn < nPoints){
+        const upto = Math.min(batch, nPoints - drawn);
+        for (let i=0; i<upto; i++){
+          p = stepIFS(p, a);
+          drawPoint(p.x, p.y);
+        }
+        drawn += upto;
+        await new Promise(r => requestAnimationFrame(r));
+      }
+    }
+
+    pointsInput.addEventListener('input', () => {
+      pointsLabel.textContent = pointsInput.value;
+      render();
+    });
+    aInput.addEventListener('input', () => {
+      aLabel.textContent = Number(aInput.value).toFixed(2);
+      render();
+    });
+
+    saveBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'ifs_chuV_lon_nguoc.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    aLabel.textContent = Number(aInput.value).toFixed(2);
+    render();
+  </script>
+</body>
+</html>
