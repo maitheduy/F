@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chữ V lộn ngược — Attractor của IFS (f1 & f2)</title>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --ink:#e5e7eb; --muted:#9ca3af; }
+    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,sans-serif;background:var(--bg);color:var(--ink);}    
+    .split{display:flex;min-height:100vh;}
+    .left{width:340px;max-width:40vw;padding:16px;box-sizing:border-box;background:#1f2937;box-shadow:4px 0 18px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:12px}
+    .right{flex:1;min-width:0;display:flex;flex-direction:column;padding:16px;box-sizing:border-box}
+
+    h1{font-size:18px;margin:0 0 8px}
+    .small{font-size:12px;color:var(--muted)}
+    .math{background:#111827;padding:10px;border-radius:10px;margin:6px 0;font-size:16px}
+
+    label{font-size:14px;color:var(--muted)}
+    input[type="range"]{width:100%}
+    button{background:#2563eb;color:white;border:none;padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+
+    .canvas-wrap{background:var(--panel);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.3);padding:12px;display:flex;flex-direction:column;gap:8px;min-height:0;flex:1}
+    canvas{width:100%;height:auto;background:#0b1022;border-radius:12px;display:block;cursor:grab}
+    canvas:active{cursor:grabbing}
+    .legend{display:flex;gap:16px;align-items:center;font-size:14px;color:var(--muted)}
+    .dot{width:10px;height:10px;border-radius:9999px;display:inline-block}
+    .g{background:green}.r{background:red}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+</head>
+<body>
+  <div class="split">
+    <aside class="left">
+      <h1>Điều khiển IFS</h1>
+      <p class="small">Kéo sliders để cập nhật attractor ngay lập tức. 
+        <br>Dùng <strong>chuột cuộn</strong> để zoom, 
+        <br><strong>giữ chuột trái và kéo</strong> để dịch chuyển hệ trục.</p>
+
+      <div class="math">
+        \[
+        f_1(x,y) = \begin{bmatrix}0.5 & 0 \\ 0.5 & a \end{bmatrix}\begin{bmatrix}x \\ y\end{bmatrix}
+        \]
+        \[
+        f_2(x,y) = \begin{bmatrix}-0.5 & 0 \\ 0.5 & a \end{bmatrix}\begin{bmatrix}x \\ y\end{bmatrix}+\begin{bmatrix}1 \\ 0\end{bmatrix}
+        \]
+      </div>
+
+      <div>
+        <label for="points">Số điểm (n_points): <span id="pointsLabel">100000</span></label>
+        <input id="points" type="range" min="1000" max="300000" step="1000" value="100000" />
+      </div>
+      <div>
+        <label for="aParam">Tham số a (trong M1, M2): <span id="aLabel">0.00</span></label>
+        <input id="aParam" type="range" min="-1" max="1" step="0.01" value="0" />
+      </div>
+      <div>
+        <button id="saveBtn">Lưu ảnh PNG</button>
+      </div>
+    </aside>
+
+    <main class="right">
+      <div class="canvas-wrap">
+        <canvas id="plot" width="1000" height="640"></canvas>
+        <div class="legend">
+          <span><span class="dot g"></span> f1 (xanh lá)</span>
+          <span><span class="dot r"></span> f2 (đỏ)</span>
+          <span>Cuộn: zoom — Kéo: dịch chuyển</span>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('plot');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const pointsInput = document.getElementById('points');
+    const pointsLabel = document.getElementById('pointsLabel');
+    const aInput = document.getElementById('aParam');
+    const aLabel = document.getElementById('aLabel');
+    const saveBtn = document.getElementById('saveBtn');
+
+    const PAD_L=40, PAD_R=12, PAD_T=16, PAD_B=36;
+    const view={xmin:0,xmax:1,ymin:0,ymax:0.5};
+    let cachedPoints=[];
+
+    function sx(x){return PAD_L+(x-view.xmin)*(canvas.width-PAD_L-PAD_R)/(view.xmax-view.xmin);}
+    function sy(y){return canvas.height-PAD_B-(y-view.ymin)*(canvas.height-PAD_T-PAD_B)/(view.ymax-view.ymin);}
+    function invx(px){return view.xmin+(px-PAD_L)*(view.xmax-view.xmin)/(canvas.width-PAD_L-PAD_R);}
+    function invy(py){return view.ymin+(canvas.height-PAD_B-py)*(view.ymax-view.ymin)/(canvas.height-PAD_T-PAD_B);}
+
+    function niceNum(range, round){const exp=Math.floor(Math.log10(range));const f=range/Math.pow(10,exp);let nf;
+      if(round){if(f<1.5)nf=1;else if(f<3)nf=2;else if(f<7)nf=5;else nf=10;}
+      else{if(f<=1)nf=1;else if(f<=2)nf=2;else if(f<=5)nf=5;else nf=10;}
+      return nf*Math.pow(10,exp);}
+    function ticks(min,max,maxTicks=10){const range=niceNum(max-min,false);
+      const step=niceNum(range/(maxTicks-1),true);
+      const graphMin=Math.floor(min/step)*step;
+      const graphMax=Math.ceil(max/step)*step;
+      const arr=[];for(let v=graphMin;v<=graphMax+1e-12;v+=step)arr.push(v);return arr;}
+
+    function clearCanvas(){ctx.fillStyle='#0b1022';ctx.fillRect(0,0,canvas.width,canvas.height);}
+    function drawAxes(){
+      ctx.strokeStyle='#334155';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(PAD_L,sy(0));ctx.lineTo(canvas.width-PAD_R,sy(0));ctx.stroke();
+      ctx.beginPath();ctx.moveTo(PAD_L,PAD_T);ctx.lineTo(PAD_L,canvas.height-PAD_B);ctx.stroke();
+      ctx.fillStyle='#9ca3af';ctx.font='12px system-ui';ctx.strokeStyle='#475569';
+      const tx=ticks(view.xmin,view.xmax,11);
+      for(const x of tx){const px=sx(x);ctx.beginPath();ctx.moveTo(px,sy(0)-4);ctx.lineTo(px,sy(0)+4);ctx.stroke();
+        ctx.fillText(x.toFixed(Math.max(0,-Math.floor(Math.log10(tx[1]-tx[0])))),px-8,sy(0)+16);}
+      const ty=ticks(view.ymin,view.ymax,6);
+      for(const y of ty){const py=sy(y);ctx.beginPath();ctx.moveTo(PAD_L-4,py);ctx.lineTo(PAD_L+4,py);ctx.stroke();
+        ctx.fillText(y.toFixed(Math.max(0,-Math.floor(Math.log10(ty[1]-ty[0])))),PAD_L-28,py+4);}
+      ctx.fillStyle='#e5e7eb';ctx.fillText('X',canvas.width-PAD_R-10,sy(0)+24);ctx.fillText('Y',PAD_L-20,PAD_T+12);
+    }
+
+    function stepIFS(p,a){if(Math.random()<0.5){return{x:0.5*p.x,y:0.5*p.x+a*p.y};}
+      else{return{x:-0.5*p.x+1.0,y:0.5*p.x+a*p.y};}}
+    function computePoints(){const nPoints=parseInt(pointsInput.value,10)||100000;
+      const a=parseFloat(aInput.value)||0;let p={x:0.5,y:0.0};
+      for(let i=0;i<300;i++)p=stepIFS(p,a);
+      const arr=new Float32Array(nPoints*2);
+      for(let i=0;i<nPoints;i++){p=stepIFS(p,a);arr[2*i]=p.x;arr[2*i+1]=p.y;}
+      cachedPoints=arr;}
+    function drawPoints(){for(let i=0;i<cachedPoints.length;i+=2){
+      const x=cachedPoints[i],y=cachedPoints[i+1];const px=sx(x),py=sy(y);
+      ctx.fillStyle=(x<0.5)?'green':'red';ctx.fillRect(px,py,1,1);}}
+    function render(){clearCanvas();drawAxes();drawPoints();}
+
+    function refreshFromUI(){pointsLabel.textContent=pointsInput.value;
+      aLabel.textContent=Number(aInput.value).toFixed(2);computePoints();render();}
+    pointsInput.addEventListener('input',refreshFromUI);
+    aInput.addEventListener('input',refreshFromUI);
+
+    // Zoom
+    canvas.addEventListener('wheel',(e)=>{e.preventDefault();
+      const rect=canvas.getBoundingClientRect();
+      const scaleX=canvas.width/rect.width;
+      const scaleY=canvas.height/rect.height;
+      const px=(e.clientX-rect.left)*scaleX;
+      const py=(e.clientY-rect.top)*scaleY;
+      if(px<PAD_L||px>canvas.width-PAD_R||py<PAD_T||py>canvas.height-PAD_B)return;
+      const wx=invx(px),wy=invy(py);const k=(e.deltaY<0)?0.9:1.1;
+      const newXmin=wx-(wx-view.xmin)*k;const newXmax=wx+(view.xmax-wx)*k;
+      const newYmin=wy-(wy-view.ymin)*k;const newYmax=wy+(view.ymax-wy)*k;
+      if((newXmax-newXmin)>1e-4&&(newYmax-newYmin)>1e-4){
+        view.xmin=newXmin;view.xmax=newXmax;view.ymin=newYmin;view.ymax=newYmax;render();}}, {passive:false});
+
+    // Pan (dịch chuyển hệ trục)
+    let isDragging=false,lastX=0,lastY=0;
+    canvas.addEventListener('mousedown',(e)=>{isDragging=true;lastX=e.clientX;lastY=e.clientY;});
+    canvas.addEventListener('mousemove',(e)=>{if(!isDragging)return;
+      const dx=e.clientX-lastX;const dy=e.clientY-lastY;
+      lastX=e.clientX;lastY=e.clientY;
+      const scaleX=(view.xmax-view.xmin)/(canvas.width-PAD_L-PAD_R);
+      const scaleY=(view.ymax-view.ymin)/(canvas.height-PAD_T-PAD_B);
+      view.xmin-=dx*scaleX;view.xmax-=dx*scaleX;
+      view.ymin+=dy*scaleY;view.ymax+=dy*scaleY;
+      render();});
+    window.addEventListener('mouseup',()=>{isDragging=false;});
+
+    saveBtn.addEventListener('click',()=>{const link=document.createElement('a');
+      link.download='ifs_chuV_lon_nguoc.png';link.href=canvas.toDataURL('image/png');link.click();});
+
+    refreshFromUI();
+  </script>
+</body>
+</html>
